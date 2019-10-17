@@ -3,34 +3,29 @@ ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 
-$dbconnecterror = FALSE;
-$dbh = NULL;
-$dbReadError = FALSE;
+if ($_SERVER['REQUEST_METHOD'] == "GET") {
 
-require_once 'credentials.php';
-
-try{
+	//build url for api
+	$url="http://3.229.178.148/api/tasks.php";
 	
-	$conn_string = "mysql:host=".$dbserver.";dbname=".$db;
+	$ch = curl_init();
+	curl_setopt($ch, CURLOPT_URL, $url);
+	//curl_setopt($ch, CURLOPT_HTTPHEADER, array('Content-Type: application/json','Content-Length: ' . strlen($data_json)));
+	curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'GET');
+	//curl_setopt($ch, CURLOPT_POSTFIELDS,$data_json);
+	curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+	$response  = curl_exec($ch); //body of the response
+	$httpcode = curl_getinfo($ch, CURLINFO_HTTP_CODE); //gets the status code
+	curl_close($ch);
 	
-	$dbh= new PDO($conn_string, $dbusername, $dbpassword);
-	$dbh->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-}catch(Exception $e){
-	$dbconnecterror = TRUE;
-}
-
-if (!$dbconnecterror) {
-	
-	try {
-		$sql = "SELECT * FROM doList";
-		$stmt = $dbh->prepare($sql);
-		$stmt->execute();
-		$result = $stmt->fetchAll();
-	} catch (PDOException $e) {
-		$dbReadError = TRUE;
-	}
-
-}
+	//if(status code = 204)	
+	if($httpcode == 200){
+		$json = file_get_contents('http://3.229.178.148/api/tasks.php');
+		$json_array = json_decode($json, true);
+		//foreach ($json_array as $task){
+		//	echo $task['listID']. "<br>";
+		//}
+		
 ?>
 <!doctype html>
 <html lang="en">
@@ -53,15 +48,15 @@ if (!$dbconnecterror) {
 		<a href="index.php"><h1 id="siteName">doIT</h1></a>
 		<hr>
 
-			<?php if(isset($result)) { ?>
-				<?php foreach($result as $item){ ?>
+			<?php if(isset($json_array)) { ?>
+				<?php foreach($json_array as $item){ ?>
 					<div class="list">
 						<form method="POST" action="edit.php" style="display: inline-block">
 							<input type="hidden" 	name="listID" value="<?php echo $item["listID"];?>" >
-							<input type="checkbox"	name="fin" <?php if($item["complete"]=='1'){echo "checked='checked'";} ?> >
-							<input type="text" 	name="listItem" size="50" value="<?php echo $item["listItem"];?>" maxlength="100" >
+							<input type="checkbox"	name="fin" <?php if($item["completed"]=='1'){echo "checked='checked'";} ?> >
+							<input type="text" 	name="listItem" size="50" value="<?php echo $item["taskName"];?>" maxlength="100" >
 							<span>by:</span>
-							<input type="date" 	name="finBy" value="<?php if($item['finishDate']=='0000-00-00'){echo '';} else {echo $item['finishDate'];} ?>" >
+							<input type="date" 	name="finBy" value="<?php if($item['taskDate']=='0000-00-00'){echo '';} else {echo $item['taskDate'];} ?>" >
 							<input type="submit" 	name="submitEdit" value="&check;" >
 						</form>
 						<form method="POST" action="delete.php" style="display: inline-block">
@@ -82,16 +77,16 @@ if (!$dbconnecterror) {
 				</form>
 			</div>
 			
-			<?php if ($dbconnecterror) { ?>
+		<!--	<?php //if ($dbconnecterror) { ?>
 			<div class="error">
 				Uh oh! There was an error connecting to the database. Please check your connection settings and try again.
 			</div>
-			<?php } ?>
-			<?php if ($dbReadError) { ?>
+			<?php// } ?>
+			<?php //if ($dbReadError) { ?>
 			<div class="error">
 				Uh oh! There was an error reading the to do list from the database. Please check your connection settings and try again.
 			</div>
-			<?php } ?>
+			<?php //} ?> -->
 			<?php if (array_key_exists('error', $_GET)) { ?>
 				<?php if ($_GET['error'] == 'add') { ?>
 				<div class="error">
@@ -111,3 +106,11 @@ if (!$dbconnecterror) {
 			<?php } ?>
 	</body>
 </html>
+<?php
+}else{
+	//api errors (not http 204)
+	//header("Location: index.php?error");
+	echo "error";
+}
+}
+?>
